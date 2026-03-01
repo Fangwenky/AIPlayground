@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AIPlayground - 比较不同AI模型的回复</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0f; color: #e5e5e5; min-height: 100vh; }
+        
+        /* Header */
+        header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 20px 30px; border-bottom: 1px solid #2a2a4a; }
+        header h1 { background: linear-gradient(135deg, #00d4ff, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 1.8rem; }
+        header p { color: #888; margin-top: 5px; }
+        
+        /* Main */
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        /* Settings */
+        .settings { background: #1a1a2e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #2a2a4a; }
+        .settings h3 { margin-bottom: 15px; color: #00d4ff; }
+        .api-keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .api-key { display: flex; flex-direction: column; gap: 5px; }
+        .api-key label { font-size: 0.85rem; color: #888; }
+        .api-key input { background: #0a0a0f; border: 1px solid #2a2a4a; padding: 10px; border-radius: 8px; color: #e5e5e5; font-family: monospace; }
+        .api-key input:focus { outline: none; border-color: #00d4ff; }
+        
+        /* Model Selector */
+        .model-selector { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .model-btn { background: #2a2a4a; border: 1px solid #3a3a5a; padding: 8px 16px; border-radius: 20px; cursor: pointer; color: #888; transition: all 0.3s; }
+        .model-btn:hover { border-color: #00d4ff; }
+        .model-btn.active { background: linear-gradient(135deg, #00d4ff, #7c3aed); color: white; border-color: transparent; }
+        
+        /* Input Area */
+        .input-area { background: #1a1a2e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #2a2a4a; }
+        .input-area textarea { width: 100%; background: #0a0a0f; border: 1px solid #2a2a4a; border-radius: 8px; padding: 15px; color: #e5e5e5; font-size: 1rem; min-height: 120px; resize: vertical; }
+        .input-area textarea:focus { outline: none; border-color: #00d4ff; }
+        .input-area textarea::placeholder { color: #555; }
+        
+        .input-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        .preset-prompts { display: flex; gap: 8px; flex-wrap: wrap; }
+        .preset-btn { background: #2a2a4a; border: none; padding: 6px 12px; border-radius: 15px; font-size: 0.8rem; color: #888; cursor: pointer; }
+        .preset-btn:hover { background: #3a3a5a; color: #00d4ff; }
+        .submit-btn { background: linear-gradient(135deg, #00d4ff, #7c3aed); border: none; padding: 12px 30px; border-radius: 8px; font-size: 1rem; font-weight: bold; color: white; cursor: pointer; }
+        .submit-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Results Grid */
+        .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .result-card { background: #1a1a2e; border-radius: 12px; border: 1px solid #2a2a4a; overflow: hidden; }
+        .result-header { background: #2a2a4a; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .result-header h4 { color: #00d4ff; }
+        .result-header .time { font-size: 0.8rem; color: #666; }
+        .result-body { padding: 20px; min-height: 150px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; line-height: 1.7; }
+        .result-body code { background: #0a0a0f; padding: 2px 6px; border-radius: 4px; font-family: 'Fira Code', monospace; }
+        
+        /* Loading */
+        .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #666; }
+        .spinner { width: 20px; height: 20px; border: 2px solid #2a2a4a; border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Stats */
+        .stats-bar { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .stat-item { background: #1a1a2e; padding: 15px 25px; border-radius: 10px; border: 1px solid #2a2a4a; }
+        .stat-item .label { font-size: 0.8rem; color: #666; }
+        .stat-item .value { font-size: 1.5rem; font-weight: bold; color: #00d4ff; }
+        
+        /* History */
+        .history { background: #1a1a2e; border-radius: 12px; padding: 20px; margin-top: 20px; border: 1px solid #2a2a4a; }
+        .history h3 { margin-bottom: 15px; color: #00d4ff; }
+        .history-item { background: #0a0a0f; padding: 15px; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+        .history-item:hover { background: #1a1a2e; }
+        .history-item .question { color: #00d4ff; font-weight: 500; }
+        .history-item .models { font-size: 0.8rem; color: #666; margin-top: 5px; }
+        
+        /* Empty State */
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-state .icon { font-size: 4rem; margin-bottom: 20px; }
+        
+        /* Error */
+        .error { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        
+        /* Toast */
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #1a1a2e; border: 1px solid #00d4ff; padding: 15px 25px; border-radius: 8px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🤖 AIPlayground</h1>
+        <p>同时比较多个AI模型的回复，找到最适合你的答案</p>
+    </header>
+    
+    <div class="container">
+        <!-- Stats -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="label">支持的模型</div>
+                <div class="value">6</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">总请求数</div>
+                <div class="value" id="totalRequests">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">今日对话</div>
+                <div class="value" id="todayChats">0</div>
+            </div>
+        </div>
+        
+        <!-- API Settings -->
+        <div class="settings">
+            <h3>⚙️ API配置 (至少配置一个)</h3>
+            <div class="api-keys">
+                <div class="api-key">
+                    <label>OpenAI API Key (GPT-4o, GPT-4o-mini)</label>
+                    <input type="password" id="openaiKey" placeholder="sk-..." onchange="saveKeys()">
+                </div>
+                <div class="api-key">
+                    <label>DeepSeek API Key</label>
+                    <input type="password" id="deepseekKey" placeholder="sk-..." onchange="saveKeys()">
+                </div>
+                <div class="api-key">
+                    <label>MiniMax API Key</label>
+                    <input type="password" id="minimaxKey" placeholder="sk-..." onchange="saveKeys()">
+                </div>
+                <div class="api-key">
+                    <label>硅基流动 API Key (免费额度)</label>
+                    <input type="password" id="siliconKey" placeholder="sk-..." onchange="saveKeys()">
+                </div>
+            </div>
+            
+            <div class="model-selector">
+                <button class="model-btn active" data-model="gpt-4o" data-provider="openai">GPT-4o</button>
+                <button class="model-btn active" data-model="gpt-4o-mini" data-provider="openai">GPT-4o-mini</button>
+                <button class="model-btn active" data-model="deepseek-chat" data-provider="deepseek">DeepSeek V3</button>
+                <button class="model-btn active" data-model="deepseek-coder" data-provider="deepseek">DeepSeek Coder</button>
+                <button class="model-btn" data-model="MiniMax-M2.1" data-provider="minimax">MiniMax M2.1</button>
+                <button class="model-btn" data-model="Qwen/Qwen2.5-7B-Instruct" data-provider="silicon">Qwen 7B</button>
+                <button class="model-btn" data-model="THUDM/glm-4-9b-chat" data-provider="silicon">GLM-4</button>
+            </div>
+        </div>
+        
+        <!-- Input -->
+        <div class="input-area">
+            <textarea id="prompt" placeholder="输入你的问题...&#10;例如：解释一下什么是机器学习？"></textarea>
+            <div class="input-actions">
+                <div class="preset-prompts">
+                    <button class="preset-btn" onclick="setPrompt('解释概念', '用通俗易懂的语言解释')">📚 解释概念</button>
+                    <button class="preset-btn" onclick="setPrompt('写代码', '用Python写一个')">💻 写代码</button>
+                    <button class="preset-btn" onclick="setPrompt('对比分析', '对比分析')">⚖️ 对比分析</button>
+                    <button class="preset-btn" onclick="setPrompt('头脑风暴', '给我5个创意')">💡 头脑风暴</button>
+                    <button class="preset-btn" onclick="setPrompt('英文翻译', '翻译成英文')">🌐 翻译</button>
+                </div>
+                <button class="submit-btn" id="submitBtn" onclick="runComparison()">🚀 开始比较</button>
+            </div>
+            <div id="error" class="error" style="display:none"></div>
+        </div>
+        
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="empty-state">
+                <div class="icon">🤖</div>
+                <h3>输入问题，比较多个AI的回答</h3>
+                <p>选择要比较的模型，点击"开始比较"</p>
+            </div>
+        </div>
+        
+        <!-- History -->
+        <div class="history" id="historySection" style="display:none">
+            <h3>📜 历史记录</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast" style="display:none"></div>
+    
+    <script>
+        // State
+        let selectedModels = ['gpt-4o', 'gpt-4o-mini', 'deepseek-chat'];
+        let history = JSON.parse(localStorage.getItem('aipg_history') || '[]');
+        
+        // Load saved keys
+        const savedKeys = JSON.parse(localStorage.getItem('aipg_keys') || '{}');
+        document.getElementById('openaiKey').value = savedKeys.openai || '';
+        document.getElementById('deepseekKey').value = savedKeys.deepseek || '';
+        document.getElementById('minimaxKey').value = savedKeys.minimax || '';
+        document.getElementById('siliconKey').value = savedKeys.silicon || '';
+        
+        // Update stats
+        const stats = JSON.parse(localStorage.getItem('aipg_stats') || '{"total":0,"today":0,"date":""}');
+        const today = new Date().toDateString();
+        if (stats.date !== today) { stats.today = 0; stats.date = today; }
+        document.getElementById('totalRequests').textContent = stats.total;
+        document.getElementById('todayChats').textContent = stats.today;
+        
+        // Load history
+        if (history.length > 0) {
+            document.getElementById('historySection').style.display = 'block';
+            renderHistory();
+        }
+        
+        // Model selector
+        document.querySelectorAll('.model-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                const model = btn.dataset.model;
+                if (selectedModels.includes(model)) {
+                    selectedModels = selectedModels.filter(m => m !== model);
+                } else {
+                    selectedModels.push(model);
+                }
+            });
+        });
+        
+        function saveKeys() {
+            const keys = {
+                openai: document.getElementById('openaiKey').value,
+                deepseek: document.getElementById('deepseekKey').value,
+                minimax: document.getElementById('minimaxKey').value,
+                silicon: document.getElementById('siliconKey').value
+            };
+            localStorage.setItem('aipg_keys', JSON.stringify(keys));
+            showToast('✅ API密钥已保存到本地');
+        }
+        
+        function setPrompt(type, prefix) {
+            const prompts = {
+                '解释概念': '用通俗易懂的语言解释什么是机器学习？',
+                '写代码': '用Python写一个快速排序算法，并加上注释',
+                '对比分析': '对比分析Python和JavaScript的优缺点',
+                '头脑风暴': '给我5个适合大学生的AI项目创意',
+                '英文翻译': '把以下内容翻译成英文：人工智能正在改变世界'
+            };
+            document.getElementById('prompt').value = prompts[type] || '';
+        }
+        
+        async function runComparison() {
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) { showError('请输入问题'); return; }
+            if (selectedModels.length === 0) { showError('请至少选择一个模型'); return; }
+            
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'none';
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = selectedModels.map(model => `
+                <div class="result-card">
+                    <div class="result-header">
+                        <h4>${getModelName(model)}</h4>
+                        <span class="time">等待中...</span>
+                    </div>
+                    <div class="result-body"><div class="loading"><div class="spinner"></div>生成中...</div></div>
+                </div>
+            `).join('');
+            
+            document.getElementById('submitBtn').disabled = true;
+            
+            // Update stats
+            stats.total++;
+            stats.today++;
+            localStorage.setItem('aipg_stats', JSON.stringify(stats));
+            document.getElementById('totalRequests').textContent = stats.total;
+            document.getElementById('todayChats').textContent = stats.today;
+            
+            // Save to history
+            history.unshift({ prompt, models: selectedModels, time: new Date().toISOString() });
+            history = history.slice(0, 20);
+            localStorage.setItem('aipg_history', JSON.stringify(history));
+            document.getElementById('historySection').style.display = 'block';
+            renderHistory();
+            
+            // Run all requests
+            const promises = selectedModels.map(model => callAPI(model, prompt));
+            const results = await Promise.all(promises);
+            
+            // Display results
+            resultsDiv.innerHTML = results.map((r, i) => {
+                const model = selectedModels[i];
+                return `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <h4>${getModelName(model)}</h4>
+                            <span class="time">${r.time}ms</span>
+                        </div>
+                        <div class="result-body">${r.error || r.content}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('submitBtn').disabled = false;
+        }
+        
+        async function callAPI(model, prompt) {
+            const startTime = Date.now();
+            const provider = getProvider(model);
+            const key = document.getElementById(provider + 'Key').value;
+            
+            if (!key) {
+                return { content: '', error: `⚠️ 请先配置 ${getProviderName(provider)} API Key`, time: 0 };
+            }
+            
+            try {
+                let response, data;
+                
+                if (provider === 'openai') {
+                    response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+                    });
+                    data = await response.json();
+                    if (data.error) throw new Error(data.error.message);
+                    return { content: data.choices[0].message.content, time: Date.now() - startTime };
+                }
+                
+                if (provider === 'deepseek') {
+                    response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+                    });
+                    data = await response.json();
+                    if (data.error) throw new Error(data.error.message);
+                    return { content: data.choices[0].message.content, time: Date.now() - startTime };
+                }
+                
+                if (provider === 'minimax') {
+                    response = await fetch('https://api.minimax.chat/v1/text/chatcompletion_pro', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+                    });
+                    data = await response.json();
+                    if (data.base_resp && data.base_resp.status_code) throw new Error(data.base_resp.status_msg);
+                    return { content: data.choices[0].message.content, time: Date.now() - startTime };
+                }
+                
+                if (provider === 'silicon') {
+                    response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+                    });
+                    data = await response.json();
+                    if (data.error) throw new Error(data.error.message);
+                    return { content: data.choices[0].message.content, time: Date.now() - startTime };
+                }
+                
+            } catch (e) {
+                return { content: '', error: '❌ ' + e.message, time: Date.now() - startTime };
+            }
+        }
+        
+        function getProvider(model) {
+            if (model.startsWith('gpt-')) return 'openai';
+            if (model.startsWith('deepseek')) return 'deepseek';
+            if (model.startsWith('MiniMax')) return 'minimax';
+            return 'silicon';
+        }
+        
+        function getModelName(model) {
+            const names = {
+                'gpt-4o': 'GPT-4o',
+                'gpt-4o-mini': 'GPT-4o-mini',
+                'deepseek-chat': 'DeepSeek V3',
+                'deepseek-coder': 'DeepSeek Coder',
+                'MiniMax-M2.1': 'MiniMax M2.1',
+                'Qwen/Qwen2.5-7B-Instruct': 'Qwen 7B',
+                'THUDM/glm-4-9b-chat': 'GLM-4'
+            };
+            return names[model] || model;
+        }
+        
+        function getProviderName(p) {
+            const names = { openai: 'OpenAI', deepseek: 'DeepSeek', minimax: 'MiniMax', silicon: '硅基流动' };
+            return names[p] || p;
+        }
+        
+        function showError(msg) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        }
+        
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+        
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            list.innerHTML = history.map((h, i) => `
+                <div class="history-item" onclick="loadHistory(${i})">
+                    <div class="question">${h.prompt.substring(0, 50)}${h.prompt.length > 50 ? '...' : ''}</div>
+                    <div class="models">${h.models.map(m => getModelName(m)).join(', ')}</div>
+                </div>
+            `).join('');
+        }
+        
+        function loadHistory(i) {
+            const h = history[i];
+            document.getElementById('prompt').value = h.prompt;
+            selectedModels = h.models;
+            document.querySelectorAll('.model-btn').forEach(btn => {
+                btn.classList.toggle('active', selectedModels.includes(btn.dataset.model));
+            });
+        }
+    </script>
+</body>
+</html>
